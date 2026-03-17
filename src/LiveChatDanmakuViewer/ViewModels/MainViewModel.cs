@@ -19,11 +19,12 @@ namespace LiveChatDanmakuViewer.ViewModels
         private readonly Dispatcher _dispatcher;
         private IPlatformClient? _currentClient;
         private PlatformChoice _selectedPlatform;
-        private string _roomId = "7777";
+        private string _roomId = "189201";
         private string _cookie = string.Empty;
         private ConnectionState _connectionState = ConnectionState.Disconnected;
         private string _statusDetail = "等待连接";
         private bool _isBusy;
+        private bool _enableAsciiArt;
 
         /// <summary>
         /// 初始化主界面状态和平台列表。
@@ -31,13 +32,16 @@ namespace LiveChatDanmakuViewer.ViewModels
         public MainViewModel()
         {
             _dispatcher = Application.Current.Dispatcher;
-            Platforms = new ReadOnlyCollection<PlatformChoice>(new List<PlatformChoice>
+            List<PlatformChoice> platformChoices = new List<PlatformChoice>
             {
                 new PlatformChoice(ViewerPlatform.Bilibili, "Bilibili B 站", "HTTP 取 token + WebSocket 二进制头 + zlib 解包"),
                 new PlatformChoice(ViewerPlatform.Douyu, "Douyu 斗鱼", "控制通道拿转发节点 + Danmu 通道收消息 + STT 文本协议"),
                 new PlatformChoice(ViewerPlatform.Huya, "Huya 虎牙", "WebSocket + Tars 帧，先走注册分组和消息推送链路"),
-            });
-            _selectedPlatform = Platforms[0];
+            };
+
+            Platforms = new ReadOnlyCollection<PlatformChoice>(platformChoices);
+            PlatformChoice? defaultPlatform = platformChoices.Find(choice => choice.Platform == ViewerPlatform.Huya);
+            _selectedPlatform = defaultPlatform ?? platformChoices[0];
             Messages = new ObservableCollection<LiveMessage>();
             Logs = new ObservableCollection<ViewerLogEntry>();
         }
@@ -170,6 +174,15 @@ namespace LiveChatDanmakuViewer.ViewModels
         }
 
         /// <summary>
+        /// 是否启用字符画模式展示弹幕内容。
+        /// </summary>
+        public bool EnableAsciiArt
+        {
+            get { return _enableAsciiArt; }
+            set { SetProperty(ref _enableAsciiArt, value); }
+        }
+
+        /// <summary>
         /// 连接入口：参数校验 -> 旧连接清理 -> 创建平台客户端 -> 建立连接。
         /// </summary>
         public async Task ConnectAsync()
@@ -294,7 +307,7 @@ namespace LiveChatDanmakuViewer.ViewModels
         {
             _dispatcher.BeginInvoke(new Action(delegate
             {
-                Messages.Insert(0, message);
+                Messages.Insert(0, TransformMessageForDisplay(message));
                 // 限制 UI 列表长度，避免长时间运行导致内存和渲染压力上升。
                 if (Messages.Count > 500)
                 {
@@ -303,6 +316,28 @@ namespace LiveChatDanmakuViewer.ViewModels
 
                 RaiseCollectionCounters();
             }));
+        }
+
+        /// <summary>
+        /// 根据当前展示模式转换消息内容（普通文本 / 字符画）。
+        /// </summary>
+        private LiveMessage TransformMessageForDisplay(LiveMessage message)
+        {
+            if (!EnableAsciiArt || string.IsNullOrWhiteSpace(message.Content))
+            {
+                return message;
+            }
+
+            return new LiveMessage(
+                message.Timestamp,
+                message.Platform,
+                message.RoomId,
+                message.Category,
+                message.UserName,
+                message.UserId,
+                message.Badge,
+                AsciiArtRenderer.Render(message.Content),
+                message.Command);
         }
 
         /// <summary>

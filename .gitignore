@@ -34,3 +34,6 @@ Thumbs.db
 .agents/
 .trellis/
 AGENTS.md
+
+# Local generated artifacts
+artifacts/

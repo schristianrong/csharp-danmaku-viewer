@@ -1,5 +1,8 @@
+using System;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using LiveChatDanmakuViewer.ViewModels;
 
 namespace LiveChatDanmakuViewer
@@ -10,6 +13,12 @@ namespace LiveChatDanmakuViewer
     /// </summary>
     public partial class MainWindow : Window
     {
+        private const int DwmUseImmersiveDarkMode = 20;
+        private const int DwmUseImmersiveDarkModeLegacy = 19;
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int attributeValue, int attributeSize);
+
         /// <summary>
         /// 初始化窗口并绑定主 ViewModel。
         /// </summary>
@@ -17,6 +26,7 @@ namespace LiveChatDanmakuViewer
         {
             InitializeComponent();
             DataContext = new MainViewModel();
+            SourceInitialized += MainWindow_OnSourceInitialized;
         }
 
         /// <summary>
@@ -25,6 +35,34 @@ namespace LiveChatDanmakuViewer
         private MainViewModel ViewModel
         {
             get { return (MainViewModel)DataContext; }
+        }
+
+        /// <summary>
+        /// 窗口句柄就绪后启用深色标题栏。
+        /// </summary>
+        private void MainWindow_OnSourceInitialized(object? sender, EventArgs e)
+        {
+            TryEnableDarkTitleBar();
+        }
+
+        /// <summary>
+        /// 请求系统将标题栏渲染为深色主题。
+        /// </summary>
+        private void TryEnableDarkTitleBar()
+        {
+            IntPtr windowHandle = new WindowInteropHelper(this).Handle;
+            if (windowHandle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            int enabled = 1;
+            int attributeSize = Marshal.SizeOf<int>();
+            int result = DwmSetWindowAttribute(windowHandle, DwmUseImmersiveDarkMode, ref enabled, attributeSize);
+            if (result != 0)
+            {
+                DwmSetWindowAttribute(windowHandle, DwmUseImmersiveDarkModeLegacy, ref enabled, attributeSize);
+            }
         }
 
         /// <summary>

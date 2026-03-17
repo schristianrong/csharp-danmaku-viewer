@@ -35,6 +35,10 @@
 dotnet run --project .\src\LiveChatDanmakuViewer\LiveChatDanmakuViewer.csproj
 ```
 
+## 截图展示
+
+![LiveChatDanmakuViewer 界面截图](./png/1.png)
+
 ## 文档
 
 - 详细项目介绍：`docs/project-introduction.md`
